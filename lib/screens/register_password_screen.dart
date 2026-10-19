@@ -35,7 +35,12 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
     super.dispose();
   }
 
-  Future<void> _createAccount(String code, String name) async {
+  Future<void> _createAccount(
+    String code,
+    String name,
+    String email,
+    String securityToken,
+  ) async {
     if (_loading) return;
     setState(() => _loading = true);
     try {
@@ -43,6 +48,8 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
         userCode: code,
         name: name,
         password: _pass.text,
+        email: email,
+        securityToken: securityToken,
       );
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
@@ -64,7 +71,14 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
     final registrationData = arguments is Map ? arguments : null;
     final rawCode = registrationData?['cod_user'];
     final rawName = registrationData?['nombre'];
-    final validData = rawCode is String && rawName is String;
+    final rawEmail = registrationData?['correo_institucional'];
+    final rawSecurityToken = registrationData?['token_seguridad'];
+    final validData =
+        rawCode is String &&
+        rawName is String &&
+        rawEmail is String &&
+        rawSecurityToken is String &&
+        rawSecurityToken.isNotEmpty;
     final canSubmit =
         _minLength && _lettersNumbers && _match && _withinApiLimit;
 
@@ -150,7 +164,12 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
               AppButton(
                 label: _loading ? 'Creando cuenta…' : 'Crear cuenta',
                 onPressed: canSubmit && validData && !_loading
-                    ? () => _createAccount(rawCode, rawName)
+                    ? () => _createAccount(
+                        rawCode,
+                        rawName,
+                        rawEmail,
+                        rawSecurityToken,
+                      )
                     : null,
               ),
               const SizedBox(height: 14),

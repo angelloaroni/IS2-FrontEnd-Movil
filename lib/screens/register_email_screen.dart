@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_text_field.dart';
@@ -19,33 +20,61 @@ class RegisterEmailScreen extends StatefulWidget {
 class _RegisterEmailScreenState extends State<RegisterEmailScreen> {
   final _codeController = TextEditingController();
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  bool _loading = false;
 
   @override
   void dispose() {
     _codeController.dispose();
     _nameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
+    if (_loading) return;
     final code = _codeController.text.trim();
     final name = _nameController.text.trim();
-    if (!RegExp(r'^\d{8}$').hasMatch(code) || name.isEmpty) {
+    final email = _emailController.text.trim();
+    if (!RegExp(r'^\d{8}$').hasMatch(code) ||
+        name.isEmpty ||
+        !_isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Ingresa tu nombre y un código de usuario de 8 dígitos.',
+            'Ingresa tu nombre, un código de 8 dígitos y un correo válido.',
           ),
         ),
       );
       return;
     }
-    Navigator.pushNamed(
-      context,
-      '/register/verify',
-      arguments: {'cod_user': code, 'nombre': name},
-    );
+    setState(() => _loading = true);
+    try {
+      await ApiService.instance.requestRegistrationCode(email: email);
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/register/verify',
+          arguments: {
+            'cod_user': code,
+            'nombre': name,
+            'correo_institucional': email,
+          },
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text('$error')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
+
+  bool _isValidEmail(String email) =>
+      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +106,14 @@ class _RegisterEmailScreenState extends State<RegisterEmailScreen> {
               ),
               const SizedBox(height: 14),
               AppTextField(
+                label: 'Correo institucional',
+                hint: 'ana@universidad.edu',
+                controller: _emailController,
+                suffixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 14),
+              AppTextField(
                 label: 'Código de usuario (8 dígitos)',
                 hint: '00001004',
                 controller: _codeController,
@@ -94,20 +131,20 @@ class _RegisterEmailScreenState extends State<RegisterEmailScreen> {
               ),
               const SizedBox(height: 14),
               AppButton(
-                label: 'Continuar',
+                label: _loading ? 'Enviando código…' : 'Enviar código',
                 icon: Icons.arrow_forward,
-                onPressed: _continue,
+                onPressed: _loading ? null : _continue,
               ),
               const SizedBox(height: 14),
               const InfoBox(
                 icon: Icons.eco_outlined,
                 title: 'Una cuenta, muchas oportunidades',
-                message: 'Tu reciclaje se convierte en puntos. Podrás consultar tu impacto y el historial de tus entregas.',
+                message: 'Enviaremos un código de verificación a tu correo institucional. Tu reciclaje se convierte en puntos y podrás consultar tu impacto.',
               ),
               const SizedBox(height: 40),
               const Center(
                 child: Text(
-                  'El registro requiere un código de usuario único de 8 dígitos.',
+                  'Usa tu correo institucional y un código de usuario único de 8 dígitos.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 9.5, color: AppColors.textGrey),
                 ),

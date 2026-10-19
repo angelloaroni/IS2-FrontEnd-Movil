@@ -4,6 +4,7 @@ class AppUser {
   final String name;
   final double points;
   final String type;
+  final String? institutionalEmail;
   final bool active;
 
   const AppUser({
@@ -12,6 +13,7 @@ class AppUser {
     required this.name,
     required this.points,
     required this.type,
+    this.institutionalEmail,
     required this.active,
   });
 
@@ -36,6 +38,7 @@ class AppUser {
       name: name,
       points: points.toDouble(),
       type: type,
+      institutionalEmail: json['correo_institucional'] as String?,
       active: active,
     );
   }

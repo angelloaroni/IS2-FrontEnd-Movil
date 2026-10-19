@@ -74,10 +74,45 @@ class ApiService {
     return AppUser.fromJson(userData);
   }
 
+  Future<void> requestRegistrationCode({required String email}) async {
+    await _request(
+      'POST',
+      '/auth/registro/codigo',
+      body: {'correo_institucional': email.trim()},
+      authenticated: false,
+    );
+  }
+
+  Future<String> verifyCode({
+    required String email,
+    required String code,
+    required String purpose,
+  }) async {
+    final data = await _request(
+      'POST',
+      '/auth/verificar-codigo',
+      body: {
+        'correo_institucional': email.trim(),
+        'codigo_verificacion': code.trim(),
+        'proposito': purpose,
+      },
+      authenticated: false,
+    );
+    final securityToken = data['token_seguridad'];
+    if (securityToken is! String || securityToken.isEmpty) {
+      throw const ApiException(
+        'El servidor no devolvió un token de verificación válido.',
+      );
+    }
+    return securityToken;
+  }
+
   Future<AppUser> register({
     required String userCode,
     required String name,
     required String password,
+    required String email,
+    required String securityToken,
   }) async {
     await _request(
       'POST',
@@ -87,6 +122,8 @@ class ApiService {
         'nombre': name.trim(),
         'tipo': 'usuario',
         'contraseña': password,
+        'correo_institucional': email.trim(),
+        'token_seguridad': securityToken,
       },
       authenticated: false,
     );
@@ -99,6 +136,32 @@ class ApiService {
         statusCode: error.statusCode,
       );
     }
+  }
+
+  Future<void> requestPasswordRecoveryCode({required String email}) async {
+    await _request(
+      'POST',
+      '/auth/recuperar-contrasena',
+      body: {'correo_institucional': email.trim()},
+      authenticated: false,
+    );
+  }
+
+  Future<void> changePassword({
+    required String userCode,
+    required String password,
+    required String securityToken,
+  }) async {
+    await _request(
+      'POST',
+      '/auth/modificar-contrasena',
+      body: {
+        'cod_user': userCode.trim(),
+        'nueva_contraseña': password,
+        'token_seguridad': securityToken,
+      },
+      authenticated: false,
+    );
   }
 
   Future<DashboardData> loadDashboard() async {

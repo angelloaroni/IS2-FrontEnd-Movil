@@ -133,6 +133,14 @@ class ProfileScreen extends StatelessWidget {
                     label: 'Código de usuario',
                     value: data.user.code,
                   ),
+                  if (data.user.institutionalEmail != null) ...[
+                    const Divider(height: 1, color: AppColors.border),
+                    _ProfileDetail(
+                      icon: Icons.email_outlined,
+                      label: 'Correo institucional',
+                      value: data.user.institutionalEmail!,
+                    ),
+                  ],
                   const Divider(height: 1, color: AppColors.border),
                   _ProfileDetail(
                     icon: Icons.verified_user_outlined,

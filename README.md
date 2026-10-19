@@ -52,7 +52,7 @@ FrontEndMovil/
 - **Historial:** registros obtenidos en páginas desde el backend.
 - **Mi perfil:** datos del usuario autenticado y cierre de sesión.
 
-El login llama a `POST /api/auth/login`. El registro usa `POST /api/auth/registro` y, si se crea correctamente la cuenta, inicia sesión automáticamente. Las solicitudes protegidas envían el JWT con `Authorization: Bearer ...`; el token se guarda con `flutter_secure_storage`.
+El login llama a `POST /api/auth/login`. El registro solicita un código de 8 dígitos para el correo institucional (`POST /api/auth/registro/codigo`), lo valida con `POST /api/auth/verificar-codigo` y crea la cuenta con el token de un solo uso devuelto por el servidor. Al completar el registro, la app inicia sesión automáticamente. La recuperación solicita y verifica un código por correo antes de actualizar la contraseña. Las solicitudes protegidas envían el JWT como `Authorization: Bearer <token>` y el token se guarda con `flutter_secure_storage`.
 
 ## Configurar y ejecutar
 
@@ -82,10 +82,10 @@ flutter analyze
 flutter test
 ```
 
-## Funciones pendientes del backend o de interfaz
+## Estado de integración
 
-- **Verificación por correo:** la API no expone envío ni validación de códigos; el paso intermedio confirma los datos localmente y lo informa.
-- **Recuperación de contraseña:** no existe un endpoint documentado; la acción se muestra como no disponible en vez de simular un envío.
+- **Registro y verificación por correo:** integrados con el flujo de solicitud, confirmación del código y token de seguridad de un solo uso.
+- **Recuperación de contraseña:** integrada con solicitud de código, verificación y cambio de contraseña asociado al código de usuario. El backend no revela si el correo está asociado a una cuenta.
 - **Registrar un reciclaje desde la app:** no hay todavía una pantalla de selección de tacho, material y peso. El backend documenta `POST /api/residuos`, pero hace falta esa interfaz para integrarlo adecuadamente.
 
-Los endpoints administrativos, premios, logros, notificaciones y tachos no están conectados a pantallas del cliente actual.
+El backend debe tener SMTP configurado para poder enviar los códigos. Los códigos vencen en 3 minutos, permiten hasta 5 intentos y el reenvío está limitado a una vez por minuto. Los endpoints administrativos, premios, logros, notificaciones y tachos no están conectados a pantallas del cliente actual.

@@ -11,12 +11,14 @@ void main() {
       'nombre': 'Ana Pérez',
       'puntos': 15.5,
       'tipo': 'usuario',
+      'correo_institucional': 'ana@institucion.edu',
       'estado': true,
     });
 
     expect(user.code, '00001004');
     expect(user.initials, 'AP');
     expect(user.points, 15.5);
+    expect(user.institutionalEmail, 'ana@institucion.edu');
   });
 
   test('parses history entries and derives points from the API tariff', () {
