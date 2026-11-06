@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_data.dart';
+import '../models/monthly_recycler.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
+import '../widgets/monthly_recycler_card.dart';
 
 class PointsScreen extends StatelessWidget {
   final DashboardData data;
@@ -41,6 +43,16 @@ class PointsScreen extends StatelessWidget {
               ),
             ),
             _PointsCard(data: data),
+
+            // Tarjeta del Reciclador del Mes integrada de forma segura
+            if (data.monthlyRecycler != null) ...[
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: MonthlyRecyclerCard(recycler: data.monthlyRecycler!),
+              ),
+            ],
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
