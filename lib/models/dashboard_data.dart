@@ -1,5 +1,6 @@
 import 'app_user.dart';
 import 'delivery.dart';
+import 'monthly_recycler.dart';
 
 class UserMetrics {
   final int totalDeliveries;
@@ -29,6 +30,7 @@ class DashboardData {
   final int? rankingPosition;
   final List<Delivery> deliveries;
   final int historyTotal;
+  final MonthlyRecycler? monthlyRecycler;
 
   const DashboardData({
     required this.user,
@@ -36,7 +38,17 @@ class DashboardData {
     required this.rankingPosition,
     required this.deliveries,
     required this.historyTotal,
+    this.monthlyRecycler,
   });
+
+  factory DashboardData.fromJson(Map<String, dynamic> json) {
+    return DashboardData(
+      // ... mapeo de otros campos ...
+      monthlyRecycler: json['monthlyRecycler'] != null 
+          ? MonthlyRecycler.fromJson(json['monthlyRecycler']) 
+          : null,
+    );
+  }
 }
 
 class HistoryPage {

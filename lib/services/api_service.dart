@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../models/app_user.dart';
 import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
+import '../models/monthly_recycler.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -273,6 +274,22 @@ class ApiService {
     throw ApiException(
       'El servidor devolvió datos en un formato inesperado.',
       statusCode: response.statusCode,
+    );
+  }
+
+
+  Future<MonthlyRecycler> getMonthlyRecycler() async {
+    // Nota: Aquí se realiza la llamada HTTP GET al backend.
+    // Por ahora, se simula una respuesta exitosa:
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    return MonthlyRecycler(
+      id: '1',
+      name: 'Carlos Mendoza',
+      avatarUrl: '',
+      totalPoints: 1250,
+      totalKgRecycled: 42.5,
+      monthYear: 'Noviembre 2026',
     );
   }
 
