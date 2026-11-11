@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
+import 'personal_environmental_stats_screen.dart';
+import 'achievements_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final DashboardData data;
@@ -53,7 +56,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: Text(
                       data.user.initials,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 25,
                         fontWeight: FontWeight.w800,
                         color: AppColors.orange,
@@ -70,9 +73,9 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
+                  const Text(
                     'Comunidad · Universidad de Lima',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textGrey,
                     ),
@@ -95,8 +98,7 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: _ImpactCard(
                     icon: Icons.eco_outlined,
-                    value:
-                        '${data.metrics.totalWeightKg.toStringAsFixed(1)} kg',
+                    value: '${data.metrics.totalWeightKg.toStringAsFixed(1)} kg',
                     label: 'Material recuperado',
                   ),
                 ),
@@ -110,6 +112,58 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+
+            _MenuActionCard(
+              icon: Icons.analytics_outlined,
+              label: 'Ver estadísticas ambientales detalladas',
+              color: AppColors.green,
+              backgroundColor: AppColors.greenSoft,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PersonalEnvironmentalStatsScreen(data: data),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            _MenuActionCard(
+              icon: Icons.military_tech_rounded,
+              label: 'Ver mis logros y medallas',
+              color: AppColors.orange,
+              backgroundColor: AppColors.orangeSoft,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AchievementsScreen(data: data),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            _MenuActionCard(
+              icon: Icons.edit_outlined,
+              label: 'Editar información de perfil',
+              color: AppColors.orange,
+              backgroundColor: AppColors.orangeSoft,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(
+                      currentName: data.user.name,
+                      onSave: (updatedName) {
+                        // Actualización de estado local
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+
             const SizedBox(height: 20),
             const Text(
               'Información personal',
@@ -220,6 +274,58 @@ class ProfileScreen extends StatelessWidget {
     if (shouldLogout == true && context.mounted) {
       await onLogout();
     }
+  }
+}
+
+class _MenuActionCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color backgroundColor;
+  final VoidCallback onTap;
+
+  const _MenuActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.backgroundColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ],
+            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: color),
+          ],
+        ),
+      ),
+    );
   }
 }
 

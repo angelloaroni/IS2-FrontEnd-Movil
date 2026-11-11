@@ -1,5 +1,6 @@
 import 'app_user.dart';
 import 'delivery.dart';
+import 'monthly_recycler.dart';
 
 class UserMetrics {
   final int totalDeliveries;
@@ -11,8 +12,9 @@ class UserMetrics {
   });
 
   factory UserMetrics.fromJson(Map<String, dynamic> json) {
-    final count = json['totalResiduos'];
-    final weight = json['pesoTotalKg'];
+    final count = json['totalResiduos'] ?? json['totalDeliveries'] ?? 0;
+    final weight = json['pesoTotalKg'] ?? json['totalWeightKg'] ?? 0.0;
+    
     if (count is! num || weight is! num) {
       throw const FormatException('El servidor devolvió métricas inválidas.');
     }
@@ -29,6 +31,7 @@ class DashboardData {
   final int? rankingPosition;
   final List<Delivery> deliveries;
   final int historyTotal;
+  final MonthlyRecycler? monthlyRecycler;
 
   const DashboardData({
     required this.user,
@@ -36,7 +39,29 @@ class DashboardData {
     required this.rankingPosition,
     required this.deliveries,
     required this.historyTotal,
+    this.monthlyRecycler,
   });
+
+  factory DashboardData.fromJson(Map<String, dynamic> json) {
+    return DashboardData(
+      user: AppUser.fromJson(json['user'] ?? json['usuario'] ?? {}),
+      
+      metrics: UserMetrics.fromJson(json['metrics'] ?? json),
+      
+      rankingPosition: json['rankingPosition'] ?? json['puestoRanking'],
+      
+      deliveries: (json['deliveries'] as List?)
+              ?.map((e) => Delivery.fromJson(e))
+              .toList() ?? 
+          [],
+      
+      historyTotal: json['historyTotal'] ?? json['total'] ?? 0,
+      
+      monthlyRecycler: json['monthlyRecycler'] != null || json['recicladorMes'] != null
+          ? MonthlyRecycler.fromJson(json['monthlyRecycler'] ?? json['recicladorMes']) 
+          : null,
+    );
+  }
 }
 
 class HistoryPage {

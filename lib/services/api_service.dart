@@ -9,6 +9,7 @@ import '../models/app_user.dart';
 import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
 import '../models/recycling_point.dart';
+import '../models/monthly_recycler.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -165,24 +166,49 @@ class ApiService {
     );
   }
 
+  Future<AppUser> updateProfile({required String name}) async {
+    final data = await _request(
+      'PATCH',
+      '/usuarios/me',
+      body: {'nombre': name.trim()},
+      authenticated: true,
+    );
+
+    final userData = data['usuario'] ?? data;
+    if (userData is! Map<String, dynamic>) {
+      throw const ApiException('El servidor devolvió un formato de usuario inválido.');
+    }
+
+    return AppUser.fromJson(userData);
+  }
+
   Future<DashboardData> loadDashboard() async {
     final responses = await Future.wait([
       get('/usuarios'),
       get('/usuarios/me/metricas'),
       get('/ranking'),
       get('/usuarios/me/historial?pagina=1&limite=10'),
+      get('/ranking/reciclador-mes'), 
     ]);
 
     final user = AppUser.fromJson(responses[0]);
     final metrics = responses[1];
     final ranking = responses[2];
     final history = responses[3];
+    final recyclerJson = responses[4];
 
     final historyPage = _parseHistoryPage(history);
     final topData = ranking['usuario'];
     if (topData != null && topData is! Map<String, dynamic>) {
       throw const ApiException('El servidor devolvió datos incompletos.');
     }
+
+    MonthlyRecycler? monthlyRecycler;
+    final recyclerData = recyclerJson['data'] ?? recyclerJson;
+    if (recyclerData is Map<String, dynamic>) {
+      monthlyRecycler = MonthlyRecycler.fromJson(recyclerData);
+    }
+
     return DashboardData(
       user: user,
       metrics: UserMetrics.fromJson(metrics),
@@ -191,6 +217,7 @@ class ApiService {
           : null,
       deliveries: historyPage.deliveries,
       historyTotal: historyPage.total,
+      monthlyRecycler: monthlyRecycler,
     );
   }
 
@@ -199,7 +226,7 @@ class ApiService {
     return _parseHistoryPage(result);
   }
 
-  Future<Map<String, dynamic>> get(String path) =>
+  Future> get(String path) =>
       _request('GET', path, authenticated: true);
 
   Future<List<RecyclingPoint>> loadRecyclingPoints() async {
@@ -233,7 +260,7 @@ class ApiService {
 
   Future<void> logout() => _storage.delete(key: _tokenKey);
 
-  Future<Map<String, dynamic>> _request(
+  Future> _request(
     String method,
     String path, {
     Map<String, Object?>? body,
@@ -317,11 +344,67 @@ class ApiService {
     }
 
     final data = decoded['data'];
-    if (data is Map<String, dynamic> || data is List) return data;
+    if (data is Map<String, dynamic>) return data;
+    if (decoded is Map<String, dynamic>) return decoded;
+    
     throw ApiException(
       'El servidor devolvió datos en un formato inesperado.',
       statusCode: response.statusCode,
     );
+  }
+
+  /// HU18: Obtiene las estadísticas personales y métricas de impacto ambiental
+  Future> getPersonalEnvironmentalStats() async {
+    final data = await _request(
+      'GET',
+      '/usuarios/me/metricas',
+      authenticated: true,
+    );
+    return data;
+  }
+
+  Future<List<Achievement>> getUserAchievements() async {
+    final data = await _request(
+      'GET',
+      '/logros',
+      authenticated: true,
+    );
+
+    final listData = data['logros'] ?? data;
+    if (listData is! List) {
+      throw const ApiException('El servidor devolvió un formato de logros inválido.');
+    }
+
+    return listData
+        .whereType>()
+        .map((item) => Achievement.fromJson(item))
+        .toList();
+  }
+
+  Future<List<MonthlyRecycler>> getMonthlyRecyclerData({String? mes}) async {
+    final queryParameters = mes != null ? {'mes': mes} : null;
+
+    final data = await _request(
+      'GET',
+      '/ranking/reciclador-mes',
+      queryParameters: queryParameters,
+      authenticated: true, 
+    );
+
+    final listData = data['data'] ?? data['ranking'] ?? data;
+    
+    if (listData is Map<String, dynamic>) {
+      return [MonthlyRecycler.fromJson(listData)];
+    }
+
+    if (listData is! List) {
+      throw const ApiException('El servidor devolvió un formato de datos mensuales inválido.');
+    }
+
+    return listData
+        .whereType>()
+        .map((item) => MonthlyRecycler.fromJson(item))
+        .toList();
   }
 
   static int? _intOrNull(dynamic value) {
@@ -341,10 +424,10 @@ class ApiService {
         records.length;
     return HistoryPage(
       deliveries: records
-          .whereType<Map<String, dynamic>>()
+          .whereType>()
           .map(Delivery.fromJson)
           .toList(growable: false),
-      total: total,
+      historyTotal: total,
     );
   }
 }
