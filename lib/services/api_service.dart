@@ -202,13 +202,11 @@ class ApiService {
   Future<Map<String, dynamic>> get(String path) =>
       _request('GET', path, authenticated: true);
 
-  /// Todos los tachos activos para mostrarlos en el mapa.
   Future<List<RecyclingPoint>> loadRecyclingPoints() async {
     final data = await _send('GET', '/tachos', authenticated: true);
     return _parsePoints(data);
   }
 
-  /// Tachos dentro de [radiusM] metros, ordenados por distancia ascendente.
   Future<List<RecyclingPoint>> loadNearbyPoints({
     required double latitude,
     required double longitude,
@@ -253,7 +251,6 @@ class ApiService {
     );
   }
 
-  /// Envía la petición y devuelve `data` tal cual (objeto o lista).
   Future<dynamic> _send(
     String method,
     String path, {
