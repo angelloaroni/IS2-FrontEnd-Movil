@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/app_user.dart'; 
+import '../services/api_service.dart'; 
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 
@@ -20,11 +21,11 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false; // Estado para controlar el indicador de carga
 
   @override
   void initState() {
     super.initState();
-    // Inicializamos el controlador con el nombre actual del usuario
     _nameController = TextEditingController(text: widget.currentName);
   }
 
@@ -34,11 +35,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      // Llamamos a la función de guardado y regresamos a la pantalla anterior
-      widget.onSave(_nameController.text.trim());
-      Navigator.pop(context);
+      setState(() {
+        _isLoading = true; // Activamos el indicador de carga
+      });
+
+      try {
+        final updatedName = _nameController.text.trim();
+        await ApiService.instance.updateProfile(name: updatedName);
+
+        if (!mounted) return;
+
+        widget.onSave(updatedName);
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Perfil actualizado con éxito en el servidor!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } on ApiException catch (e) {
+        // Capturamos errores controlados de la API
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ocurrió un error inesperado: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false; // Desactivamos el indicador de carga
+          });
+        }
+      }
     }
   }
 
@@ -83,6 +124,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameController,
+                  enabled: !_isLoading, // Deshabilita el input mientras carga
                   decoration: InputDecoration(
                     hintText: 'Ingresa tu nombre',
                     filled: true,
@@ -105,12 +147,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Botón de Guardar
+                // Botón de Guardar con soporte para estado de carga
                 SizedBox(
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _submitForm,
+                    onPressed: _isLoading ? null : _submitForm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.orange,
                       foregroundColor: Colors.white,
@@ -119,13 +161,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Guardar cambios',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Guardar cambios',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                   ),
                 ),
               ],

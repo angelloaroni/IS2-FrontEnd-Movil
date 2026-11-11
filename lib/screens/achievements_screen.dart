@@ -1,37 +1,41 @@
 import 'package:flutter/material.dart';
-import '../models/dashboard_data.dart';
 import '../models/achievement.dart';
+import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 
-class AchievementsScreen extends StatelessWidget {
-  final DashboardData data;
+class AchievementsScreen extends StatefulWidget {
+  const AchievementsScreen({super.key});
 
-  const AchievementsScreen({
-    super.key,
-    required this.data,
-  });
+  @override
+  State<AchievementsScreen> createState() => _AchievementsScreenState();
+}
+
+class _AchievementsScreenState extends State<AchievementsScreen> {
+  late Future<List<Achievement>> _achievementsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Llamamos al método del servicio al cargar la pantalla
+    _achievementsFuture = ApiService.instance.getUserAchievements();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final achievements = Achievement.getMockAchievements(
-      totalKg: data.metrics.totalWeightKg,
-      totalDeliveries: data.metrics.totalDeliveries,
-    );
-
-    final unlockedCount = achievements.where((a) => a.isUnlocked).length;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const BrandHeader(),
-              const SizedBox(height: 16),
-              const Text(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: BrandHeader(),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
                 'Logros y Medallas',
                 style: TextStyle(
                   fontSize: 22,
@@ -39,83 +43,95 @@ class AchievementsScreen extends StatelessWidget {
                   color: AppColors.textDark,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Has desbloqueado $unlockedCount de ${achievements.length} medallas',
-                style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
-              ),
-              const SizedBox(height: 20),
-
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: achievements.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final achievement = achievements[index];
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: achievement.isUnlocked ? AppColors.greenSoft : Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: achievement.isUnlocked
-                            ? AppColors.green.withValues(alpha: 0.3)
-                            : AppColors.border,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: FutureBuilder<List<Achievement>>(
+                future: _achievementsFuture,
+                builder: (context, snapshot) {
+                  // Estado de carga
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } 
+                  // Estado de error
+                  else if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          'Error al cargar logros: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: achievement.isUnlocked ? AppColors.green : AppColors.border,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            achievement.isUnlocked ? Icons.military_tech_rounded : Icons.lock_outline_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
+                    );
+                  } 
+                  // Estado sin datos
+                  else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text('Aún no tienes logros registrados.'),
+                    );
+                  }
+
+                  // Renderizado de la lista de logros obtenidos
+                  final achievements = snapshot.data!;
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: achievements.length,
+                    itemBuilder: (context, index) {
+                      final achievement = achievements[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                achievement.title,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: achievement.isUnlocked ? AppColors.textDark : AppColors.textGrey,
-                                ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              achievement.isUnlocked
+                                  ? Icons.emoji_events
+                                  : Icons.lock,
+                              color: achievement.isUnlocked
+                                  ? AppColors.orange
+                                  : Colors.grey,
+                              size: 32,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    achievement.title,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    achievement.description,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textGrey,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                achievement.description,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        if (achievement.isUnlocked)
-                          const Icon(
-                            Icons.check_circle_rounded,
-                            color: AppColors.green,
-                            size: 20,
-                          ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
