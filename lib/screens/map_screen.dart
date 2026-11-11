@@ -17,10 +17,6 @@ enum _LocationState {
   error,
 }
 
-/// Mapa con los puntos de reciclaje (tachos) y la ubicación del usuario.
-///
-/// Los datos se cargan la primera vez que [active] pasa a `true`, para no
-/// pedir el permiso de ubicación al abrir la app.
 class MapScreen extends StatefulWidget {
   final bool active;
 
@@ -31,7 +27,6 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Campus de la Universidad de Lima; se usa si aún no hay puntos ni ubicación.
   static const _fallbackCenter = LatLng(-12.0854, -76.9714);
   static const _nearbyRadiusM = 5000;
 
@@ -75,7 +70,6 @@ class _MapScreenState extends State<MapScreen> {
     _locateUser();
   }
 
-  // ---------------------------------------------------------------- datos
 
   Future<void> _loadPoints() async {
     setState(() {
@@ -88,7 +82,6 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _points = points;
         _loadingPoints = false;
-        // Conserva la selección solo si el punto sigue existiendo.
         final selectedId = _selected?.id;
         _selected = selectedId == null
             ? null
@@ -112,7 +105,7 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      // 1. Solicitar permiso de ubicación.
+
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -126,7 +119,6 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      // 2. Obtener las coordenadas del dispositivo.
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
@@ -135,7 +127,6 @@ class _MapScreenState extends State<MapScreen> {
       );
       if (!mounted) return;
 
-      // 3. Mostrar la ubicación actual en el mapa.
       final here = LatLng(position.latitude, position.longitude);
       setState(() {
         _userLocation = here;
@@ -143,10 +134,9 @@ class _MapScreenState extends State<MapScreen> {
       });
       _moveTo(here, 15);
 
-      // 4. Presentar los puntos cercanos.
       await _loadNearby(here);
     } catch (_) {
-      // Incluye TimeoutException y errores de plataforma.
+
       _setLocationState(_LocationState.error);
     }
   }
@@ -180,7 +170,6 @@ class _MapScreenState extends State<MapScreen> {
     if (here != null) await _loadNearby(here);
   }
 
-  // ---------------------------------------------------------------- mapa
 
   void _moveTo(LatLng target, double zoom) {
     if (!_mapReady) return;
@@ -216,7 +205,6 @@ class _MapScreenState extends State<MapScreen> {
     _moveTo(LatLng(point.latitude, point.longitude), 17);
   }
 
-  /// Une los datos del listado con la distancia calculada por el backend.
   RecyclingPoint _withKnownDistance(RecyclingPoint point) {
     if (point.distanceM != null) return point;
     final here = _userLocation;
@@ -231,7 +219,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // ---------------------------------------------------------------- UI
 
   @override
   Widget build(BuildContext context) {
@@ -504,7 +491,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-// ------------------------------------------------------------ componentes
 
 class _PointMarker extends StatelessWidget {
   final RecyclingPoint point;
