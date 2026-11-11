@@ -17,7 +17,6 @@ class RecyclingPoint {
     this.distanceM,
   });
 
-  /// Devuelve null si el JSON no trae un id o unas coordenadas válidas.
   static RecyclingPoint? tryParse(Map<String, dynamic> json) {
     final id = _toNum(json['idTacho'])?.toInt();
     final lat = _toNum(json['latitud'])?.toDouble();
@@ -69,7 +68,6 @@ class RecyclingPoint {
         : '${(d / 1000).toStringAsFixed(1)} km';
   }
 
-  // PostgreSQL puede devolver DECIMAL como texto, por eso se acepta String.
   static num? _toNum(dynamic value) {
     if (value is num) return value;
     if (value is String) return num.tryParse(value);
