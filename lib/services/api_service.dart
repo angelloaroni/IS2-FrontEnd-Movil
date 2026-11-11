@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../models/app_user.dart';
 import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
+import '../models/recycling_point.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -201,9 +202,59 @@ class ApiService {
   Future<Map<String, dynamic>> get(String path) =>
       _request('GET', path, authenticated: true);
 
+  /// Todos los tachos activos para mostrarlos en el mapa.
+  Future<List<RecyclingPoint>> loadRecyclingPoints() async {
+    final data = await _send('GET', '/tachos', authenticated: true);
+    return _parsePoints(data);
+  }
+
+  /// Tachos dentro de [radiusM] metros, ordenados por distancia ascendente.
+  Future<List<RecyclingPoint>> loadNearbyPoints({
+    required double latitude,
+    required double longitude,
+    int radiusM = 5000,
+  }) async {
+    final data = await _send(
+      'GET',
+      '/tachos/cercanos?lat=$latitude&lng=$longitude&radio=$radiusM',
+      authenticated: true,
+    );
+    return _parsePoints(data);
+  }
+
+  static List<RecyclingPoint> _parsePoints(dynamic data) {
+    if (data is! List) {
+      throw const ApiException('El servidor devolvió una lista inválida.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(RecyclingPoint.tryParse)
+        .whereType<RecyclingPoint>()
+        .toList(growable: false);
+  }
+
   Future<void> logout() => _storage.delete(key: _tokenKey);
 
   Future<Map<String, dynamic>> _request(
+    String method,
+    String path, {
+    Map<String, Object?>? body,
+    required bool authenticated,
+  }) async {
+    final data = await _send(
+      method,
+      path,
+      body: body,
+      authenticated: authenticated,
+    );
+    if (data is Map<String, dynamic>) return data;
+    throw const ApiException(
+      'El servidor devolvió datos en un formato inesperado.',
+    );
+  }
+
+  /// Envía la petición y devuelve `data` tal cual (objeto o lista).
+  Future<dynamic> _send(
     String method,
     String path, {
     Map<String, Object?>? body,
@@ -269,7 +320,7 @@ class ApiService {
     }
 
     final data = decoded['data'];
-    if (data is Map<String, dynamic>) return data;
+    if (data is Map<String, dynamic> || data is List) return data;
     throw ApiException(
       'El servidor devolvió datos en un formato inesperado.',
       statusCode: response.statusCode,

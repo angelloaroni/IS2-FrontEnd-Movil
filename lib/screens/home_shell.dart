@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/main_bottom_nav.dart';
 import 'history_screen.dart';
+import 'map_screen.dart';
 import 'points_screen.dart';
 import 'profile_screen.dart';
 
@@ -103,6 +104,7 @@ class _HomeShellState extends State<HomeShell> {
             index: _index,
             children: [
               PointsScreen(data: data),
+              MapScreen(active: _index == 1),
               HistoryScreen(data: data),
               ProfileScreen(data: data, onLogout: _logout),
             ],
