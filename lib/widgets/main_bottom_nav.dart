@@ -23,8 +23,9 @@ class MainBottomNav extends StatelessWidget {
         child: Row(
           children: [
             _item(0, Icons.emoji_events_outlined, 'Puntos'),
-            _item(1, Icons.history, 'Historial'),
-            _item(2, Icons.person_outline, 'Mi perfil'),
+            _item(1, Icons.map_outlined, 'Mapa'),
+            _item(2, Icons.history, 'Historial'),
+            _item(3, Icons.person_outline, 'Mi perfil'),
           ],
         ),
       ),
