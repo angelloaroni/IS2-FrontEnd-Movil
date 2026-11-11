@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/app_user.dart';
+import '../models/achievement.dart';
 import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
 import '../models/recycling_point.dart';
@@ -226,7 +227,7 @@ class ApiService {
     return _parseHistoryPage(result);
   }
 
-  Future> get(String path) =>
+  Future<Map<String, dynamic>> get(String path) =>
       _request('GET', path, authenticated: true);
 
   Future<List<RecyclingPoint>> loadRecyclingPoints() async {
@@ -260,16 +261,18 @@ class ApiService {
 
   Future<void> logout() => _storage.delete(key: _tokenKey);
 
-  Future> _request(
+  Future<Map<String, dynamic>> _request(
     String method,
     String path, {
     Map<String, Object?>? body,
+    Map<String, String>? queryParameters,
     required bool authenticated,
   }) async {
     final data = await _send(
       method,
       path,
       body: body,
+      queryParameters: queryParameters,
       authenticated: authenticated,
     );
     if (data is Map<String, dynamic>) return data;
@@ -282,6 +285,7 @@ class ApiService {
     String method,
     String path, {
     Map<String, Object?>? body,
+    Map<String, String>? queryParameters,
     required bool authenticated,
   }) async {
     final headers = <String, String>{'Accept': 'application/json'};
@@ -296,7 +300,13 @@ class ApiService {
 
     final normalizedBase = _baseUri.toString().replaceAll(RegExp(r'/+$'), '');
     final relativePath = path.startsWith('/') ? path.substring(1) : path;
-    final uri = Uri.parse('$normalizedBase/$relativePath');
+    final pathUri = Uri.parse('$normalizedBase/$relativePath');
+    final uri = queryParameters == null
+        ? pathUri
+        : pathUri.replace(queryParameters: {
+            ...pathUri.queryParameters,
+            ...queryParameters,
+          });
     late final http.Response response;
     try {
       final request = http.Request(method, uri)..headers.addAll(headers);
@@ -344,17 +354,12 @@ class ApiService {
     }
 
     final data = decoded['data'];
-    if (data is Map<String, dynamic>) return data;
-    if (decoded is Map<String, dynamic>) return decoded;
-    
-    throw ApiException(
-      'El servidor devolvió datos en un formato inesperado.',
-      statusCode: response.statusCode,
-    );
+    if (data is Map<String, dynamic> || data is List) return data;
+    return decoded;
   }
 
   /// HU18: Obtiene las estadísticas personales y métricas de impacto ambiental
-  Future> getPersonalEnvironmentalStats() async {
+  Future<Map<String, dynamic>> getPersonalEnvironmentalStats() async {
     final data = await _request(
       'GET',
       '/usuarios/me/metricas',
@@ -364,19 +369,21 @@ class ApiService {
   }
 
   Future<List<Achievement>> getUserAchievements() async {
-    final data = await _request(
+    final data = await _send(
       'GET',
       '/logros',
       authenticated: true,
     );
 
-    final listData = data['logros'] ?? data;
+    final listData = data is Map<String, dynamic>
+        ? data['logros'] ?? data
+        : data;
     if (listData is! List) {
       throw const ApiException('El servidor devolvió un formato de logros inválido.');
     }
 
     return listData
-        .whereType>()
+        .whereType<Map<String, dynamic>>()
         .map((item) => Achievement.fromJson(item))
         .toList();
   }
@@ -384,14 +391,16 @@ class ApiService {
   Future<List<MonthlyRecycler>> getMonthlyRecyclerData({String? mes}) async {
     final queryParameters = mes != null ? {'mes': mes} : null;
 
-    final data = await _request(
+    final data = await _send(
       'GET',
       '/ranking/reciclador-mes',
       queryParameters: queryParameters,
       authenticated: true, 
     );
 
-    final listData = data['data'] ?? data['ranking'] ?? data;
+    final listData = data is Map<String, dynamic>
+        ? data['data'] ?? data['ranking'] ?? data
+        : data;
     
     if (listData is Map<String, dynamic>) {
       return [MonthlyRecycler.fromJson(listData)];
@@ -402,7 +411,7 @@ class ApiService {
     }
 
     return listData
-        .whereType>()
+        .whereType<Map<String, dynamic>>()
         .map((item) => MonthlyRecycler.fromJson(item))
         .toList();
   }
@@ -424,10 +433,10 @@ class ApiService {
         records.length;
     return HistoryPage(
       deliveries: records
-          .whereType>()
+          .whereType<Map<String, dynamic>>()
           .map(Delivery.fromJson)
           .toList(growable: false),
-      historyTotal: total,
+      total: total,
     );
   }
 }

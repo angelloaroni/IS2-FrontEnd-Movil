@@ -65,6 +65,14 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api
 ```
 
+Para un celular Android conectado por USB en Windows, activa la depuración USB y autoriza la PC en el teléfono. Con el backend funcionando en el puerto `3000`, ejecuta desde la raíz del proyecto:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run-android-usb.ps1
+```
+
+El script detecta el dispositivo, conecta su puerto `3000` al de la PC con `adb reverse` e inicia Flutter con `API_BASE_URL=http://localhost:3000/api`. Vuelve a ejecutarlo después de reconectar el celular. Si tienes varios dispositivos, agrega `-DeviceId IDENTIFICADOR`.
+
 Para un dispositivo físico en la misma red, usa la IP LAN del equipo que ejecuta el backend:
 
 ```bash
