@@ -23,9 +23,11 @@ class MainBottomNav extends StatelessWidget {
         child: Row(
           children: [
             _item(0, Icons.emoji_events_outlined, 'Puntos'),
-            _item(1, Icons.map_outlined, 'Mapa'),
-            _item(2, Icons.history, 'Historial'),
-            _item(3, Icons.person_outline, 'Mi perfil'),
+            _item(1, Icons.leaderboard_outlined, 'Ranking'),
+            _item(2, Icons.card_giftcard_outlined, 'Premios'),
+            _item(3, Icons.map_outlined, 'Mapa'),
+            _item(4, Icons.history, 'Historial'),
+            _item(5, Icons.person_outline, 'Mi perfil'),
           ],
         ),
       ),
@@ -44,12 +46,14 @@ class MainBottomNav extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: color),
+              Icon(icon, size: 19, color: color),
               const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                   color: color,
                 ),

@@ -5,11 +5,19 @@ import '../models/monthly_recycler.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 import '../widgets/monthly_recycler_card.dart';
+import 'notifications_screen.dart';
+import 'ranking_screen.dart';
+import 'rewards_screen.dart';
 
 class PointsScreen extends StatelessWidget {
   final DashboardData data;
+  final VoidCallback? onNotificationsReviewed;
 
-  const PointsScreen({super.key, required this.data});
+  const PointsScreen({
+    super.key,
+    required this.data,
+    this.onNotificationsReviewed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +31,19 @@ class PointsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
               child: BrandHeader(
+                unreadNotificationsCount: data.notifications.where((n) => !n.isRead).length,
+                onNotificationTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationsScreen(
+                        notifications: data.notifications,
+                        onReviewed: onNotificationsReviewed,
+                      ),
+                    ),
+                  );
+                  onNotificationsReviewed?.call();
+                },
                 trailing: Container(
                   width: 28,
                   height: 28,
@@ -50,6 +71,14 @@ class PointsScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: MonthlyRecyclerCard(recycler: data.monthlyRecycler!),
+              ),
+            ] else if (data.topRanked.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: MonthlyRecyclerCard(
+                  recycler: MonthlyRecycler.fromRankingUser(data.topRanked.first),
+                ),
               ),
             ],
 
@@ -236,24 +265,91 @@ class _PointsCard extends StatelessWidget {
           const SizedBox(height: 14),
           const Divider(height: 1, color: Color(0x33F15A24)),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Tu posición en la comunidad',
-                style: TextStyle(fontSize: 10, color: AppColors.textGrey),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RankingScreen(data: data),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.leaderboard_outlined,
+                        size: 16,
+                        color: AppColors.orange,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Tu posición en la comunidad',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        data.rankingPosition == null
+                            ? 'Ver Ranking'
+                            : 'Puesto ${data.rankingPosition}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 12,
+                        color: AppColors.orange,
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              Text(
-                data.rankingPosition == null
-                    ? 'Sin posición'
-                    : 'Puesto ${data.rankingPosition}',
-                style: const TextStyle(
-                  fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RewardsScreen(data: data),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.card_giftcard_rounded, size: 16),
+              label: const Text('Canjear mis puntos por premios'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.orange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),

@@ -11,6 +11,9 @@ import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
 import '../models/recycling_point.dart';
 import '../models/monthly_recycler.dart';
+import '../models/ranking_user.dart';
+import '../models/app_notification.dart';
+import '../models/reward.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -190,6 +193,7 @@ class ApiService {
       get('/ranking'),
       loadHistoryPages(historyPages),
       get('/ranking/reciclador-mes'),
+      loadNotifications(),
     ]);
 
     final userJson = responses[0] as Map<String, dynamic>;
@@ -197,6 +201,7 @@ class ApiService {
     final ranking = responses[2] as Map<String, dynamic>;
     final historyPage = responses[3] as HistoryPage;
     final recyclerJson = responses[4] as Map<String, dynamic>;
+    final notifications = responses[5] as List<AppNotification>;
 
     final user = AppUser.fromJson(userJson);
     final topData = ranking['usuario'];
@@ -204,10 +209,31 @@ class ApiService {
       throw const ApiException('El servidor devolvió datos incompletos.');
     }
 
+    final topListRaw = ranking['top'];
+    final topRanked = topListRaw is List
+        ? topListRaw
+            .whereType<Map<String, dynamic>>()
+            .map(RankingUser.fromJson)
+            .toList()
+        : <RankingUser>[];
+
     MonthlyRecycler? monthlyRecycler;
     final recyclerData = recyclerJson['data'] ?? recyclerJson;
     if (recyclerData is Map<String, dynamic>) {
-      monthlyRecycler = MonthlyRecycler.fromJson(recyclerData);
+      final ganador = recyclerData['ganador'];
+      if (ganador is Map<String, dynamic>) {
+        monthlyRecycler = MonthlyRecycler.fromJson(recyclerData);
+      } else if (recyclerData['name'] != null || recyclerData['nombre'] != null) {
+        monthlyRecycler = MonthlyRecycler.fromJson(recyclerData);
+      }
+    }
+
+    if (monthlyRecycler == null && topRanked.isNotEmpty) {
+      final mes = recyclerData is Map<String, dynamic> ? recyclerData['mes']?.toString() : null;
+      monthlyRecycler = MonthlyRecycler.fromRankingUser(
+        topRanked.first,
+        monthYear: mes != null && mes.isNotEmpty ? mes : 'Top 1',
+      );
     }
 
     return DashboardData(
@@ -216,10 +242,62 @@ class ApiService {
       rankingPosition: topData is Map<String, dynamic>
           ? _intOrNull(topData['posicion'])
           : null,
+      topRanked: topRanked,
       deliveries: historyPage.deliveries,
       historyTotal: historyPage.total,
       monthlyRecycler: monthlyRecycler,
+      notifications: notifications,
     );
+  }
+
+  static const _readNotificationsKey = 'read_notifications_ids';
+
+  Future<Set<int>> _getReadNotificationIds() async {
+    final raw = await _storage.read(key: _readNotificationsKey);
+    if (raw == null || raw.isEmpty) return <int>{};
+    try {
+      final list = jsonDecode(raw);
+      if (list is List) {
+        return list.map((e) => int.tryParse('$e')).whereType<int>().toSet();
+      }
+    } catch (_) {}
+    return <int>{};
+  }
+
+  Future<void> markNotificationsAsRead(List<AppNotification> notifications) async {
+    final currentRead = await _getReadNotificationIds();
+    final allIds = {...currentRead, ...notifications.map((n) => n.id)};
+    await _storage.write(
+      key: _readNotificationsKey,
+      value: jsonEncode(allIds.toList()),
+    );
+
+    try {
+      await _send('PATCH', '/notificaciones/leer', authenticated: true);
+    } catch (_) {}
+  }
+
+  Future<List<AppNotification>> loadNotifications() async {
+    try {
+      final readIds = await _getReadNotificationIds();
+      final data = await _send('GET', '/notificaciones', authenticated: true);
+      List rawList = [];
+      if (data is List) {
+        rawList = data;
+      } else if (data is Map<String, dynamic>) {
+        final list = data['notificaciones'] ?? data['data'];
+        if (list is List) {
+          rawList = list;
+        }
+      }
+      return rawList
+          .whereType<Map<String, dynamic>>()
+          .map(AppNotification.fromJson)
+          .map((n) => readIds.contains(n.id) ? n.copyWith(isRead: true) : n)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<HistoryPage> loadHistoryPage(int page) async {
@@ -335,12 +413,34 @@ class ApiService {
           .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 20));
     } on http.ClientException {
-      throw ApiException(
-        kDebugMode
-            ? 'No se pudo conectar con $method $uri. '
-                  'Comprueba que el backend esté encendido y la conexión USB esté configurada.'
-            : 'No se pudo conectar con el servidor. Comprueba tu conexión.',
-      );
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          uri.host == 'localhost') {
+        final fallbackUri = uri.replace(host: '10.0.2.2');
+        try {
+          final fallbackRequest = http.Request(method, fallbackUri)
+            ..headers.addAll(headers);
+          if (body != null) fallbackRequest.body = jsonEncode(body);
+          response = await _client
+              .send(fallbackRequest)
+              .then(http.Response.fromStream)
+              .timeout(const Duration(seconds: 20));
+        } on Exception {
+          throw ApiException(
+            kDebugMode
+                ? 'No se pudo conectar con $method $uri. '
+                      'Comprueba que el backend esté encendido y la conexión USB esté configurada.'
+                : 'No se pudo conectar con el servidor. Comprueba tu conexión.',
+          );
+        }
+      } else {
+        throw ApiException(
+          kDebugMode
+              ? 'No se pudo conectar con $method $uri. '
+                    'Comprueba que el backend esté encendido y la conexión USB esté configurada.'
+              : 'No se pudo conectar con el servidor. Comprueba tu conexión.',
+        );
+      }
     } on TimeoutException {
       throw ApiException(
         kDebugMode
@@ -439,6 +539,73 @@ class ApiService {
         .whereType<Map<String, dynamic>>()
         .map((item) => MonthlyRecycler.fromJson(item))
         .toList();
+  }
+
+  /// Obtiene la lista de premios disponibles desde el backend
+  Future<List<Reward>> getRewards() async {
+    final data = await _send('GET', '/premios', authenticated: true);
+    final list = data is List
+        ? data
+        : (data is Map<String, dynamic> ? (data['premios'] ?? data['data']) : null);
+
+    if (list is! List) return [];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(Reward.fromJson)
+        .toList();
+  }
+
+  /// Canjea un premio en el backend y lo persiste en la lista local de reclamos pendientes
+  Future<ClaimedReward> claimReward(Reward reward) async {
+    final data = await _request(
+      'POST',
+      '/premios/${reward.id}/canjear',
+      authenticated: true,
+    );
+
+    final canjeMap = data['canje'] is Map<String, dynamic>
+        ? data['canje'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    final claimed = ClaimedReward(
+      id: _intOrNull(canjeMap['id_usuario_premio']) ?? DateTime.now().millisecondsSinceEpoch,
+      rewardId: reward.id,
+      rewardName: reward.name,
+      cost: reward.cost,
+      claimedDate: canjeMap['fecha_obtencion']?.toString() ?? DateTime.now().toIso8601String().split('T').first,
+      status: 'Pendiente de recojo',
+    );
+
+    await saveClaimedReward(claimed);
+    return claimed;
+  }
+
+  static const _claimedRewardsKey = 'user_claimed_rewards';
+
+  /// Obtiene los premios canjeados pendientes almacenados localmente
+  Future<List<ClaimedReward>> getPendingClaimedRewards() async {
+    final raw = await _storage.read(key: _claimedRewardsKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map<String, dynamic>>()
+            .map(ClaimedReward.fromJson)
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Guarda un nuevo premio canjeado
+  Future<void> saveClaimedReward(ClaimedReward claim) async {
+    final current = await getPendingClaimedRewards();
+    final updated = [claim, ...current.where((c) => c.id != claim.id)];
+    await _storage.write(
+      key: _claimedRewardsKey,
+      value: jsonEncode(updated.map((c) => c.toJson()).toList()),
+    );
   }
 
   static int? _intOrNull(dynamic value) {

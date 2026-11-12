@@ -49,18 +49,33 @@ class PersonalEnvironmentalStatsScreen extends StatelessWidget {
             children: [
               const BrandHeader(),
               const SizedBox(height: 16),
-              const Text(
-                'Estadísticas Ambientales',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
-                ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textDark),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Volver',
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Estadísticas Ambientales',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Conoce el impacto generado por tus actividades de reciclaje',
-                style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+              const Padding(
+                padding: EdgeInsets.only(left: 32),
+                child: Text(
+                  'Conoce el impacto generado por tus actividades de reciclaje',
+                  style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+                ),
               ),
               const SizedBox(height: 20),
               

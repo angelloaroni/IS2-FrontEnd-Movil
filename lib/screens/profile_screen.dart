@@ -7,17 +7,20 @@ import '../widgets/brand_header.dart';
 import 'personal_environmental_stats_screen.dart';
 import 'achievements_screen.dart';
 import 'edit_profile_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final DashboardData data;
   final Future<void> Function() onLogout;
   final AutoRefreshController<DashboardData>? dashboard;
+  final VoidCallback? onNotificationsReviewed;
 
   const ProfileScreen({
     super.key,
     required this.data,
     required this.onLogout,
     this.dashboard,
+    this.onNotificationsReviewed,
   });
 
   @override
@@ -29,7 +32,21 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const BrandHeader(),
+            BrandHeader(
+              unreadNotificationsCount: data.notifications.where((n) => !n.isRead).length,
+              onNotificationTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NotificationsScreen(
+                      notifications: data.notifications,
+                      onReviewed: onNotificationsReviewed,
+                    ),
+                  ),
+                );
+                onNotificationsReviewed?.call();
+              },
+            ),
             const SizedBox(height: 22),
             Text(
               'Mi perfil',

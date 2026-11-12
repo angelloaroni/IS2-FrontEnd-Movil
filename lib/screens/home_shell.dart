@@ -9,6 +9,8 @@ import 'history_screen.dart';
 import 'map_screen.dart';
 import 'points_screen.dart';
 import 'profile_screen.dart';
+import 'ranking_screen.dart';
+import 'rewards_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, this.dashboardLoader});
@@ -49,6 +51,35 @@ class _HomeShellState extends State<HomeShell> {
         _historyPages = neededPages;
         result = await _fetchDashboard();
       }
+
+      // Notificación inmediata al detectar nuevo reciclaje
+      if (mounted) {
+        final newDelivery = result.deliveries.isNotEmpty ? result.deliveries.first : null;
+        final message = newDelivery != null
+            ? '¡Reciclaje registrado con éxito! Reciclaste ${newDelivery.kg} kg de ${newDelivery.material} y ganaste +${newDelivery.points.toStringAsFixed(0)} pts.'
+            : '¡Nuevo reciclaje registrado!';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.recycling_rounded, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
     return result;
   }
@@ -73,6 +104,16 @@ class _HomeShellState extends State<HomeShell> {
   void dispose() {
     _dashboard.dispose();
     super.dispose();
+  }
+
+  void _onNotificationsReviewed() {
+    if (_dashboard.data != null) {
+      final updatedNotifications = _dashboard.data!.notifications
+          .map((n) => n.copyWith(isRead: true))
+          .toList();
+      _dashboard.data = _dashboard.data!.copyWith(notifications: updatedNotifications);
+      setState(() {});
+    }
   }
 
   Future<void> _logout() async {
@@ -149,13 +190,22 @@ class _HomeShellState extends State<HomeShell> {
           body: IndexedStack(
             index: _index,
             children: [
-              PointsScreen(data: data),
-              MapScreen(active: _index == 1),
+              PointsScreen(
+                data: data,
+                onNotificationsReviewed: _onNotificationsReviewed,
+              ),
+              RankingScreen(data: data),
+              RewardsScreen(
+                data: data,
+                onPointsChanged: () => _dashboard.refresh(),
+              ),
+              MapScreen(active: _index == 3),
               HistoryScreen(data: data, onLoadMore: _loadMoreHistory),
               ProfileScreen(
                 data: data,
                 onLogout: _logout,
                 dashboard: _dashboard,
+                onNotificationsReviewed: _onNotificationsReviewed,
               ),
             ],
           ),

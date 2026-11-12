@@ -13,7 +13,7 @@ class MonthlyRecyclerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.greenSoft,
@@ -24,7 +24,7 @@ class MonthlyRecyclerCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -38,34 +38,40 @@ class MonthlyRecyclerCard extends StatelessWidget {
               const Icon(
                 Icons.emoji_events_rounded,
                 color: AppColors.orange,
-                size: 28,
+                size: 26,
               ),
               const SizedBox(width: 8),
-              Text(
-                'Reciclador del Mes (${recycler.monthYear})',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
+              Flexible(
+                child: Text(
+                  recycler.monthYear.isNotEmpty
+                      ? 'Reciclador del Mes (${recycler.monthYear})'
+                      : 'Reciclador del Mes (Top 1)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDark,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           Stack(
             alignment: Alignment.center,
             children: [
               CircleAvatar(
-                radius: 36,
+                radius: 34,
                 backgroundColor: AppColors.orange,
                 child: CircleAvatar(
-                  radius: 33,
+                  radius: 31,
                   backgroundColor: AppColors.background,
                   child: Text(
                     recycler.name.isNotEmpty ? recycler.name[0].toUpperCase() : 'U',
                     style: const TextStyle(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: AppColors.orange,
                     ),
@@ -78,8 +84,10 @@ class MonthlyRecyclerCard extends StatelessWidget {
 
           Text(
             recycler.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppColors.textDark,
             ),
@@ -101,7 +109,7 @@ class MonthlyRecyclerCard extends StatelessWidget {
               ),
               _buildStatItem(
                 icon: Icons.recycling_rounded,
-                value: '${recycler.totalKgRecycled} kg',
+                value: '${recycler.totalKgRecycled.toStringAsFixed(1)} kg',
                 label: 'Reciclados',
               ),
             ],
@@ -125,7 +133,7 @@ class MonthlyRecyclerCard extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textDark,
               ),
@@ -136,7 +144,7 @@ class MonthlyRecyclerCard extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: AppColors.textGrey,
           ),
         ),

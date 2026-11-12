@@ -97,18 +97,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               children: [
                 const BrandHeader(),
                 const SizedBox(height: 16),
-                const Text(
-                  'Editar Perfil',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textDark,
-                  ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: AppColors.textDark),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Volver',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Editar Perfil',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Actualiza tu información personal habilitada',
-                  style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+                const Padding(
+                  padding: EdgeInsets.only(left: 32),
+                  child: Text(
+                    'Actualiza tu información personal habilitada',
+                    style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 

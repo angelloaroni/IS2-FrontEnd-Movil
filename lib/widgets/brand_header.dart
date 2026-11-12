@@ -23,8 +23,16 @@ class BrandLogo extends StatelessWidget {
 class BrandHeader extends StatelessWidget {
   final Widget? trailing;
   final bool showLogout;
+  final int unreadNotificationsCount;
+  final VoidCallback? onNotificationTap;
 
-  const BrandHeader({super.key, this.trailing, this.showLogout = false});
+  const BrandHeader({
+    super.key,
+    this.trailing,
+    this.showLogout = false,
+    this.unreadNotificationsCount = 0,
+    this.onNotificationTap,
+  });
 
   void _logout(BuildContext context) {
     showDialog(
@@ -73,6 +81,53 @@ class BrandHeader extends StatelessWidget {
           ],
         ),
         const Spacer(),
+        if (onNotificationTap != null) ...[
+          IconButton(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  unreadNotificationsCount > 0
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: unreadNotificationsCount > 0
+                      ? AppColors.orange
+                      : AppColors.textDark,
+                  size: 22,
+                ),
+                if (unreadNotificationsCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: AppColors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 14,
+                        minHeight: 14,
+                      ),
+                      child: Text(
+                        unreadNotificationsCount > 9 ? '9+' : '$unreadNotificationsCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: onNotificationTap,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 8),
+        ],
         if (trailing != null) trailing!,
         if (showLogout)
           IconButton(
