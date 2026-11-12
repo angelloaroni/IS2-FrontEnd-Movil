@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/dashboard_data.dart';
 import '../services/api_service.dart';
+import '../services/auto_refresh_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/main_bottom_nav.dart';
 import 'history_screen.dart';
@@ -10,7 +11,9 @@ import 'points_screen.dart';
 import 'profile_screen.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, this.dashboardLoader});
+
+  final Future<DashboardData> Function(int historyPages)? dashboardLoader;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -18,19 +21,62 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
-  late Future<DashboardData> _dashboard;
+  late final AutoRefreshController<DashboardData> _dashboard;
+  int _historyPages = 1;
 
   @override
   void initState() {
     super.initState();
-    _dashboard = ApiService.instance.loadDashboard();
+    _dashboard = AutoRefreshController(load: _loadDashboard);
+    _dashboard.start();
+  }
+
+  Future<DashboardData> _fetchDashboard() =>
+      widget.dashboardLoader?.call(_historyPages) ??
+      ApiService.instance.loadDashboard(historyPages: _historyPages);
+
+  Future<DashboardData> _loadDashboard() async {
+    final previous = _dashboard.data;
+    var result = await _fetchDashboard();
+    if (previous != null && result.historyTotal > previous.historyTotal) {
+      // Make room for new rows without dropping deliveries already displayed.
+      final needed =
+          previous.deliveries.length +
+          result.historyTotal -
+          previous.historyTotal;
+      final neededPages = (needed + 9) ~/ 10;
+      if (neededPages > _historyPages) {
+        _historyPages = neededPages;
+        result = await _fetchDashboard();
+      }
+    }
+    return result;
   }
 
   void _retry() {
-    setState(() => _dashboard = ApiService.instance.loadDashboard());
+    _dashboard.refresh();
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (_dashboard.isLoading) await _dashboard.refresh();
+    if (!mounted) return;
+    final previousPages = _historyPages;
+    _historyPages++;
+    await _dashboard.refresh();
+    if (_dashboard.error != null) {
+      _historyPages = previousPages;
+      throw _dashboard.error!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _dashboard.dispose();
+    super.dispose();
   }
 
   Future<void> _logout() async {
+    _dashboard.enabled = false;
     await ApiService.instance.logout();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
@@ -38,10 +84,10 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DashboardData>(
-      future: _dashboard,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
+    return ListenableBuilder(
+      listenable: _dashboard,
+      builder: (context, _) {
+        if (_dashboard.data == null && _dashboard.error != null) {
           return Scaffold(
             body: SafeArea(
               child: Center(
@@ -67,7 +113,7 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${snapshot.error}',
+                        '${_dashboard.error}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textGrey,
@@ -90,7 +136,7 @@ class _HomeShellState extends State<HomeShell> {
             ),
           );
         }
-        if (!snapshot.hasData) {
+        if (_dashboard.data == null) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: AppColors.orange),
@@ -98,15 +144,19 @@ class _HomeShellState extends State<HomeShell> {
           );
         }
 
-        final data = snapshot.requireData;
+        final data = _dashboard.data!;
         return Scaffold(
           body: IndexedStack(
             index: _index,
             children: [
               PointsScreen(data: data),
               MapScreen(active: _index == 1),
-              HistoryScreen(data: data),
-              ProfileScreen(data: data, onLogout: _logout),
+              HistoryScreen(data: data, onLoadMore: _loadMoreHistory),
+              ProfileScreen(
+                data: data,
+                onLogout: _logout,
+                dashboard: _dashboard,
+              ),
             ],
           ),
           bottomNavigationBar: MainBottomNav(

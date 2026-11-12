@@ -35,8 +35,6 @@ class ApiService {
   late final Uri _baseUri = Uri.parse(
     _configuredBaseUrl.isNotEmpty
         ? _configuredBaseUrl
-        : defaultTargetPlatform == TargetPlatform.android
-        ? 'http://10.0.2.2:3000/api'
         : 'http://localhost:3000/api',
   );
 
@@ -177,28 +175,30 @@ class ApiService {
 
     final userData = data['usuario'] ?? data;
     if (userData is! Map<String, dynamic>) {
-      throw const ApiException('El servidor devolvió un formato de usuario inválido.');
+      throw const ApiException(
+        'El servidor devolvió un formato de usuario inválido.',
+      );
     }
 
     return AppUser.fromJson(userData);
   }
 
-  Future<DashboardData> loadDashboard() async {
-    final responses = await Future.wait([
+  Future<DashboardData> loadDashboard({int historyPages = 1}) async {
+    final responses = await Future.wait<Object>([
       get('/usuarios'),
       get('/usuarios/me/metricas'),
       get('/ranking'),
-      get('/usuarios/me/historial?pagina=1&limite=10'),
-      get('/ranking/reciclador-mes'), 
+      loadHistoryPages(historyPages),
+      get('/ranking/reciclador-mes'),
     ]);
 
-    final user = AppUser.fromJson(responses[0]);
-    final metrics = responses[1];
-    final ranking = responses[2];
-    final history = responses[3];
-    final recyclerJson = responses[4];
+    final userJson = responses[0] as Map<String, dynamic>;
+    final metrics = responses[1] as Map<String, dynamic>;
+    final ranking = responses[2] as Map<String, dynamic>;
+    final historyPage = responses[3] as HistoryPage;
+    final recyclerJson = responses[4] as Map<String, dynamic>;
 
-    final historyPage = _parseHistoryPage(history);
+    final user = AppUser.fromJson(userJson);
     final topData = ranking['usuario'];
     if (topData != null && topData is! Map<String, dynamic>) {
       throw const ApiException('El servidor devolvió datos incompletos.');
@@ -225,6 +225,26 @@ class ApiService {
   Future<HistoryPage> loadHistoryPage(int page) async {
     final result = await get('/usuarios/me/historial?pagina=$page&limite=10');
     return _parseHistoryPage(result);
+  }
+
+  /// Reload every displayed page, so new records cannot duplicate rows at a
+  /// pagination boundary or leave older pages permanently stale.
+  Future<HistoryPage> loadHistoryPages(int count) async {
+    if (count < 1) {
+      throw ArgumentError.value(count, 'count', 'Must be positive');
+    }
+    final pages = await Future.wait([
+      for (var page = 1; page <= count; page++) loadHistoryPage(page),
+    ]);
+    final ids = <String>{};
+    return HistoryPage(
+      deliveries: [
+        for (final page in pages)
+          for (final delivery in page.deliveries)
+            if (delivery.id == null || ids.add(delivery.id!)) delivery,
+      ],
+      total: pages.first.total,
+    );
   }
 
   Future<Map<String, dynamic>> get(String path) =>
@@ -303,25 +323,30 @@ class ApiService {
     final pathUri = Uri.parse('$normalizedBase/$relativePath');
     final uri = queryParameters == null
         ? pathUri
-        : pathUri.replace(queryParameters: {
-            ...pathUri.queryParameters,
-            ...queryParameters,
-          });
+        : pathUri.replace(
+            queryParameters: {...pathUri.queryParameters, ...queryParameters},
+          );
     late final http.Response response;
     try {
       final request = http.Request(method, uri)..headers.addAll(headers);
       if (body != null) request.body = jsonEncode(body);
-      final streamed = await _client
+      response = await _client
           .send(request)
+          .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 20));
-      response = await http.Response.fromStream(streamed);
     } on http.ClientException {
       throw ApiException(
-        'No se pudo conectar con el servidor (${_baseUri.host}).',
+        kDebugMode
+            ? 'No se pudo conectar con $method $uri. '
+                  'Comprueba que el backend esté encendido y la conexión USB esté configurada.'
+            : 'No se pudo conectar con el servidor. Comprueba tu conexión.',
       );
     } on TimeoutException {
-      throw const ApiException(
-        'La solicitud tardó demasiado. Inténtalo otra vez.',
+      throw ApiException(
+        kDebugMode
+            ? 'El servidor no respondió en 20 segundos: $method $uri. '
+                  'Comprueba que el backend esté encendido y la conexión USB esté configurada.'
+            : 'La solicitud tardó demasiado. Inténtalo otra vez.',
       );
     }
 
@@ -369,17 +394,15 @@ class ApiService {
   }
 
   Future<List<Achievement>> getUserAchievements() async {
-    final data = await _send(
-      'GET',
-      '/logros',
-      authenticated: true,
-    );
+    final data = await _send('GET', '/logros', authenticated: true);
 
     final listData = data is Map<String, dynamic>
         ? data['logros'] ?? data
         : data;
     if (listData is! List) {
-      throw const ApiException('El servidor devolvió un formato de logros inválido.');
+      throw const ApiException(
+        'El servidor devolvió un formato de logros inválido.',
+      );
     }
 
     return listData
@@ -395,19 +418,21 @@ class ApiService {
       'GET',
       '/ranking/reciclador-mes',
       queryParameters: queryParameters,
-      authenticated: true, 
+      authenticated: true,
     );
 
     final listData = data is Map<String, dynamic>
         ? data['data'] ?? data['ranking'] ?? data
         : data;
-    
+
     if (listData is Map<String, dynamic>) {
       return [MonthlyRecycler.fromJson(listData)];
     }
 
     if (listData is! List) {
-      throw const ApiException('El servidor devolvió un formato de datos mensuales inválido.');
+      throw const ApiException(
+        'El servidor devolvió un formato de datos mensuales inválido.',
+      );
     }
 
     return listData

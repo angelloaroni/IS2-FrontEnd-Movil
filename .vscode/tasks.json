@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Preparar backend por USB",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}/run-android-usb.ps1",
+        "-PrepareOnly"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

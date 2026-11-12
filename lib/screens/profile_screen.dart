@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_data.dart';
+import '../services/auto_refresh_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 import 'personal_environmental_stats_screen.dart';
@@ -10,8 +11,14 @@ import 'edit_profile_screen.dart';
 class ProfileScreen extends StatelessWidget {
   final DashboardData data;
   final Future<void> Function() onLogout;
+  final AutoRefreshController<DashboardData>? dashboard;
 
-  const ProfileScreen({super.key, required this.data, required this.onLogout});
+  const ProfileScreen({
+    super.key,
+    required this.data,
+    required this.onLogout,
+    this.dashboard,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +82,7 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 3),
                   const Text(
                     'Comunidad · Universidad de Lima',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textGrey,
-                    ),
+                    style: TextStyle(fontSize: 11, color: AppColors.textGrey),
                   ),
                 ],
               ),
@@ -98,7 +102,8 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: _ImpactCard(
                     icon: Icons.eco_outlined,
-                    value: '${data.metrics.totalWeightKg.toStringAsFixed(1)} kg',
+                    value:
+                        '${data.metrics.totalWeightKg.toStringAsFixed(1)} kg',
                     label: 'Material recuperado',
                   ),
                 ),
@@ -123,7 +128,15 @@ class ProfileScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PersonalEnvironmentalStatsScreen(data: data),
+                    builder: (context) => dashboard == null
+                        ? PersonalEnvironmentalStatsScreen(data: data)
+                        : ListenableBuilder(
+                            listenable: dashboard!,
+                            builder: (context, _) =>
+                                PersonalEnvironmentalStatsScreen(
+                                  data: dashboard!.data ?? data,
+                                ),
+                          ),
                   ),
                 );
               },
@@ -156,7 +169,7 @@ class ProfileScreen extends StatelessWidget {
                     builder: (context) => EditProfileScreen(
                       currentName: data.user.name,
                       onSave: (updatedName) {
-                        // Actualización de estado local
+                        dashboard?.refresh();
                       },
                     ),
                   ),

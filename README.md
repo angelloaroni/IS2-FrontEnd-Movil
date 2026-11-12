@@ -52,11 +52,15 @@ FrontEndMovil/
 - **Historial:** registros obtenidos en páginas desde el backend.
 - **Mi perfil:** datos del usuario autenticado y cierre de sesión.
 
+Los datos del panel (perfil, puntos, métricas, ranking, reciclador del mes e historial) se consultan automáticamente cada 5 segundos mientras la app está en primer plano. El mapa actualiza tachos y cercanos cuando su pestaña está activa; la pantalla de logros también se actualiza mientras está abierta. Las estadísticas detalladas reciben las actualizaciones aunque ya estén abiertas. Al volver a la app se consulta inmediatamente, sin cerrar sesión.
+
+La actualización conserva las páginas del historial ya cargadas, evita filas duplicadas por identificador y amplía el historial visible cuando llegan nuevos registros. Las consultas lentas no se superponen y, ante una falla temporal, se mantienen los últimos datos disponibles hasta la siguiente consulta exitosa. No requiere cambios en el backend.
+
 El login llama a `POST /api/auth/login`. El registro solicita un código de 8 dígitos para el correo institucional (`POST /api/auth/registro/codigo`), lo valida con `POST /api/auth/verificar-codigo` y crea la cuenta con el token de un solo uso devuelto por el servidor. Al completar el registro, la app inicia sesión automáticamente. La recuperación solicita y verifica un código por correo antes de actualizar la contraseña. Las solicitudes protegidas envían el JWT como `Authorization: Bearer <token>` y el token se guarda con `flutter_secure_storage`.
 
 ## Configurar y ejecutar
 
-Inicia el backend Tachín Verde en el puerto `3000` y configura sus variables de entorno y base de datos según su guía. La app acepta la URL de la API mediante `--dart-define=API_BASE_URL=...`. Si no se especifica, usa `http://10.0.2.2:3000/api` en Android y `http://localhost:3000/api` en otros destinos.
+Inicia el backend Tachín Verde en el puerto `3000` y configura sus variables de entorno y base de datos según su guía. La app acepta la URL de la API mediante `--dart-define=API_BASE_URL=...`. Si no se especifica, usa `http://localhost:3000/api`, pensado para un celular por USB con `adb reverse`. La dirección `10.0.2.2` es específica del emulador y debe indicarse explícitamente para ese destino.
 
 Para Android Emulator:
 
@@ -71,7 +75,9 @@ Para un celular Android conectado por USB en Windows, activa la depuración USB 
 powershell -ExecutionPolicy Bypass -File .\run-android-usb.ps1
 ```
 
-El script detecta el dispositivo, conecta su puerto `3000` al de la PC con `adb reverse` e inicia Flutter con `API_BASE_URL=http://localhost:3000/api`. Vuelve a ejecutarlo después de reconectar el celular. Si tienes varios dispositivos, agrega `-DeviceId IDENTIFICADOR`.
+El script detecta el dispositivo, conecta su puerto `3000` al de la PC con `adb reverse`, comprueba que el backend responda e inicia Flutter con `API_BASE_URL=http://localhost:3000/api`. Vuelve a ejecutarlo después de reconectar el celular. Si tienes varios dispositivos, agrega `-DeviceId IDENTIFICADOR`. Filtra los mensajes informativos repetitivos `I/VRI` de Samsung; conserva los errores y permite ver todos los mensajes con `-ShowAndroidLogs`.
+
+En VS Code, elige **Android por USB (backend local)** al ejecutar: prepara automáticamente la conexión USB antes de abrir la app. La configuración **Android Emulator (backend local)** utiliza `10.0.2.2` para el emulador. No necesitas cambiar la URL en el código al alternar entre ambos.
 
 Para un dispositivo físico en la misma red, usa la IP LAN del equipo que ejecuta el backend:
 

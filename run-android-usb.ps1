@@ -1,5 +1,8 @@
 param(
-    [string]$DeviceId
+    [string]$DeviceId,
+    [switch]$PrepareOnly,
+    [switch]$ShowAndroidLogs,
+    [switch]$NoResident
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,10 +42,32 @@ if ($DeviceId -notin $deviceIds) {
 & $adbPath -s $DeviceId reverse tcp:3000 tcp:3000
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo conectar el puerto 3000 mediante USB.' }
 
+try {
+    $backendResponse = Invoke-WebRequest -Uri 'http://localhost:3000/' -UseBasicParsing -TimeoutSec 5
+    if ($backendResponse.StatusCode -ne 200) { throw 'El backend no responde correctamente.' }
+} catch {
+    throw 'El backend no responde en http://localhost:3000. Inicialo antes de ejecutar la app.'
+}
+
+if ($PrepareOnly) {
+    Write-Host 'Backend disponible y conexion USB al puerto 3000 preparada.'
+    return
+}
+
 Push-Location $PSScriptRoot
 try {
     Write-Host 'Iniciando la app con el backend http://localhost:3000/api por USB...'
-    & flutter run -d $DeviceId --dart-define=API_BASE_URL=http://localhost:3000/api
+    $flutterArguments = @('run', '-d', $DeviceId, '--dart-define=API_BASE_URL=http://localhost:3000/api')
+    if ($NoResident) { $flutterArguments += '--no-resident' }
+    if ($ShowAndroidLogs) {
+        & flutter @flutterArguments
+    } else {
+        # Hide only Samsung's repetitive informational frame callbacks.
+        # Flutter output, backend errors and Android error messages stay visible.
+        & flutter @flutterArguments | Where-Object {
+            $_ -notmatch '^I/VRI\[MainActivity\]@[^:]+:\s+(mWNT:|registerCallbackForPendingTransactions)'
+        } | ForEach-Object { Write-Host $_ }
+    }
     if ($LASTEXITCODE -ne 0) { throw 'Flutter no pudo ejecutar la app. Revisa el error anterior.' }
 } finally {
     Pop-Location

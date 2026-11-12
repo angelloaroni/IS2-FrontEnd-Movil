@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/recycling_point.dart';
 import '../services/api_service.dart';
+import '../services/auto_refresh_controller.dart';
 import '../theme/app_colors.dart';
 
 enum _LocationState {
@@ -31,6 +32,7 @@ class _MapScreenState extends State<MapScreen> {
   static const _nearbyRadiusM = 5000;
 
   final MapController _mapController = MapController();
+  late final AutoRefreshController<bool> _refreshController;
 
   bool _started = false;
   bool _mapReady = false;
@@ -42,6 +44,7 @@ class _MapScreenState extends State<MapScreen> {
   _LocationState _locationState = _LocationState.idle;
   LatLng? _userLocation;
   List<RecyclingPoint> _nearby = const [];
+  bool _loadingNearby = false;
   String? _nearbyError;
 
   RecyclingPoint? _selected;
@@ -49,6 +52,14 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshController = AutoRefreshController(
+      load: () async {
+        await _refresh();
+        return true;
+      },
+    );
+    _refreshController.enabled = false;
+    _refreshController.start();
     if (widget.active) _start();
   }
 
@@ -56,22 +67,25 @@ class _MapScreenState extends State<MapScreen> {
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.active && !_started) _start();
+    _refreshController.enabled = widget.active;
   }
 
   @override
   void dispose() {
+    _refreshController.dispose();
     _mapController.dispose();
     super.dispose();
   }
 
   void _start() {
     _started = true;
-    _loadPoints();
+    _refreshController.enabled = true;
     _locateUser();
   }
 
-
   Future<void> _loadPoints() async {
+    if (_loadingPoints) return;
+    final initialLoad = _points.isEmpty;
     setState(() {
       _loadingPoints = true;
       _pointsError = null;
@@ -87,12 +101,12 @@ class _MapScreenState extends State<MapScreen> {
             ? null
             : points.where((p) => p.id == selectedId).firstOrNull;
       });
-      if (_userLocation == null) _fitToPoints();
-    } on ApiException catch (error) {
+      if (initialLoad && _userLocation == null) _fitToPoints();
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _loadingPoints = false;
-        _pointsError = error.message;
+        _pointsError = '$error';
       });
     }
   }
@@ -104,7 +118,6 @@ class _MapScreenState extends State<MapScreen> {
         _setLocationState(_LocationState.serviceDisabled);
         return;
       }
-
 
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -136,12 +149,13 @@ class _MapScreenState extends State<MapScreen> {
 
       await _loadNearby(here);
     } catch (_) {
-
       _setLocationState(_LocationState.error);
     }
   }
 
   Future<void> _loadNearby(LatLng here) async {
+    if (_loadingNearby) return;
+    _loadingNearby = true;
     try {
       final nearby = await ApiService.instance.loadNearbyPoints(
         latitude: here.latitude,
@@ -153,9 +167,11 @@ class _MapScreenState extends State<MapScreen> {
         _nearby = nearby;
         _nearbyError = null;
       });
-    } on ApiException catch (error) {
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _nearbyError = error.message);
+      setState(() => _nearbyError = '$error');
+    } finally {
+      _loadingNearby = false;
     }
   }
 
@@ -166,10 +182,10 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _refresh() async {
     await _loadPoints();
+    if (!mounted) return;
     final here = _userLocation;
     if (here != null) await _loadNearby(here);
   }
-
 
   void _moveTo(LatLng target, double zoom) {
     if (!_mapReady) return;
@@ -219,9 +235,9 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
+    if (!_started) return const SizedBox.expand();
     return SafeArea(
       bottom: false,
       child: Column(
@@ -261,7 +277,7 @@ class _MapScreenState extends State<MapScreen> {
           ),
           IconButton(
             tooltip: 'Actualizar',
-            onPressed: _loadingPoints ? null : _refresh,
+            onPressed: _loadingPoints ? null : _refreshController.refresh,
             icon: const Icon(Icons.refresh, color: AppColors.orange),
           ),
         ],
@@ -322,12 +338,14 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ],
         ),
-        if (_loadingPoints)
+        if (_loadingPoints && _points.isEmpty)
           const Positioned(
             top: 8,
             left: 0,
             right: 0,
-            child: Center(child: _Pill(child: _Spinner(label: 'Cargando…'))),
+            child: Center(
+              child: _Pill(child: _Spinner(label: 'Cargando…')),
+            ),
           ),
         if (_pointsError != null)
           Positioned(
@@ -491,7 +509,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-
 class _PointMarker extends StatelessWidget {
   final RecyclingPoint point;
   final bool selected;
@@ -513,9 +530,7 @@ class _PointMarker extends StatelessWidget {
           color: color,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: selected ? 4 : 2),
-          boxShadow: const [
-            BoxShadow(color: Color(0x33000000), blurRadius: 6),
-          ],
+          boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 6)],
         ),
         child: const Icon(Icons.recycling, color: Colors.white, size: 22),
       ),
@@ -690,10 +705,7 @@ class _ErrorBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textDark,
-                ),
+                style: const TextStyle(fontSize: 12, color: AppColors.textDark),
               ),
             ),
             TextButton(onPressed: onRetry, child: const Text('Reintentar')),

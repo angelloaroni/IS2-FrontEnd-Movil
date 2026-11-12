@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class Delivery {
+  final String? id;
   final String material;
   final String date;
   final double kg;
@@ -8,6 +9,7 @@ class Delivery {
   final IconData icon;
 
   const Delivery({
+    this.id,
     required this.material,
     required this.date,
     required this.kg,
@@ -28,6 +30,7 @@ class Delivery {
     final type = waste['tipo'] as String;
     final normalizedType = type.toLowerCase();
     return Delivery(
+      id: json['idHistorial']?.toString(),
       material: _displayType(type),
       date: _displayDate(json['fecha'] as String),
       kg: (waste['peso'] as num).toDouble(),

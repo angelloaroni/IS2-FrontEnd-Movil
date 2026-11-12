@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../models/achievement.dart';
 import '../services/api_service.dart';
+import '../services/auto_refresh_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 
@@ -12,13 +14,20 @@ class AchievementsScreen extends StatefulWidget {
 }
 
 class _AchievementsScreenState extends State<AchievementsScreen> {
-  late Future<List<Achievement>> _achievementsFuture;
+  late final AutoRefreshController<List<Achievement>> _achievements;
 
   @override
   void initState() {
     super.initState();
-    // Llamamos al método del servicio al cargar la pantalla
-    _achievementsFuture = ApiService.instance.getUserAchievements();
+    _achievements = AutoRefreshController(
+      load: ApiService.instance.getUserAchievements,
+    )..start();
+  }
+
+  @override
+  void dispose() {
+    _achievements.dispose();
+    super.dispose();
   }
 
   @override
@@ -29,10 +38,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: BrandHeader(),
-            ),
+            const Padding(padding: EdgeInsets.all(20), child: BrandHeader()),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
@@ -46,35 +52,36 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: FutureBuilder<List<Achievement>>(
-                future: _achievementsFuture,
-                builder: (context, snapshot) {
-                  // Estado de carga
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+              child: ListenableBuilder(
+                listenable: _achievements,
+                builder: (context, _) {
+                  if (_achievements.data == null &&
+                      _achievements.error == null) {
                     return const Center(child: CircularProgressIndicator());
-                  } 
+                  }
                   // Estado de error
-                  else if (snapshot.hasError) {
+                  else if (_achievements.data == null &&
+                      _achievements.error != null) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(20),
                         child: Text(
-                          'Error al cargar logros: ${snapshot.error}',
+                          'Error al cargar logros: ${_achievements.error}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.red),
                         ),
                       ),
                     );
-                  } 
+                  }
                   // Estado sin datos
-                  else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  else if (_achievements.data!.isEmpty) {
                     return const Center(
                       child: Text('Aún no tienes logros registrados.'),
                     );
                   }
 
                   // Renderizado de la lista de logros obtenidos
-                  final achievements = snapshot.data!;
+                  final achievements = _achievements.data!;
                   return ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: achievements.length,

@@ -2,32 +2,28 @@ import 'package:flutter/material.dart';
 
 import '../models/dashboard_data.dart';
 import '../models/delivery.dart';
-import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_header.dart';
 
 class HistoryScreen extends StatefulWidget {
   final DashboardData data;
+  final Future<void> Function() onLoadMore;
 
-  const HistoryScreen({super.key, required this.data});
+  const HistoryScreen({
+    super.key,
+    required this.data,
+    required this.onLoadMore,
+  });
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late final List<Delivery> _deliveries;
-  late final int _total;
-  int _page = 1;
+  List<Delivery> get _deliveries => widget.data.deliveries;
+  int get _total => widget.data.historyTotal;
   bool _loading = false;
   String? _loadError;
-
-  @override
-  void initState() {
-    super.initState();
-    _deliveries = List.of(widget.data.deliveries);
-    _total = widget.data.historyTotal;
-  }
 
   Future<void> _loadMore() async {
     if (_loading) return;
@@ -36,12 +32,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _loadError = null;
     });
     try {
-      final result = await ApiService.instance.loadHistoryPage(_page + 1);
-      if (!mounted) return;
-      setState(() {
-        _page++;
-        _deliveries.addAll(result.deliveries);
-      });
+      await widget.onLoadMore();
     } catch (error) {
       if (mounted) setState(() => _loadError = '$error');
     } finally {
